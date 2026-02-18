@@ -999,11 +999,13 @@ impl<'infcx, 'tcx> MirBorrowckCtxt<'_, 'infcx, 'tcx> {
             if binds_to.len() == 1 {
                 let place_desc = self.local_name(*local).map(|sym| format!("`{sym}`"));
 
-                if !desugar_spans.contains(&binding_span) {
-                    if let Some(expr) = self.find_expr(binding_span) {
-                        let local_place: PlaceRef<'tcx> = (*local).into();
-                        self.suggest_cloning(err, local_place, bind_to.ty, expr, None);
-                    }
+                if !desugar_spans.contains(&binding_span)
+                    && let Some(expr) = self.find_expr(binding_span)
+                {
+                    // The binding_span doesn't correspond to a let binding desugaring
+                    // and is an expression where calling `.clone()` would be valid.
+                    let local_place: PlaceRef<'tcx> = (*local).into();
+                    self.suggest_cloning(err, local_place, bind_to.ty, expr, None);
                 }
 
                 err.subdiagnostic(crate::session_diagnostics::TypeNoCopy::Label {
