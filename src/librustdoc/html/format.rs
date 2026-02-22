@@ -502,9 +502,20 @@ fn url_parts(
 ) -> Result<UrlPartsBuilder, HrefError> {
     match cache.extern_locations[&def_id.krate] {
         ExternalLocation::Remote(ref s) => {
-            *is_remote = true;
+            let is_abs = s.contains("://") || s.starts_with("/");
+            *is_remote = is_abs;
             let s = s.trim_end_matches('/');
-            let mut builder = UrlPartsBuilder::singleton(s);
+            let mut builder = if is_abs {
+                UrlPartsBuilder::singleton(s)
+            } else {
+                // Relative paths are authored to work from the crate root
+                // directory (depth 1). For deeper pages we need extra `../`
+                // segments so the link still resolves to the same target
+                let extra = relative_to.len().saturating_sub(1);
+                let mut b: UrlPartsBuilder = iter::repeat_n(sym::dotdot, extra).collect();
+                b.push(s);
+                b
+            };
             builder.extend(module_fqp.iter().copied());
             Ok(builder)
         }
